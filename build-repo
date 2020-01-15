@@ -1,0 +1,158 @@
+#!/usr/bin/env python
+import argparse
+from enum import Enum, auto
+import subprocess
+import sys
+import tempfile
+from collections import OrderedDict
+
+from pathlib import Path
+from textwrap import dedent
+from typing import Union
+
+PEARL_CONF_TEMPLATE = """
+# This is an auto generated file by repo-builder (https://github.com/pearl-core/repo-builder)
+
+PEARL_REPO_NAME = "pearl"
+
+# The following list of packages are sorted alphabetically
+
+PEARL_PACKAGES = {{
+{body}
+}}
+"""
+
+PACKAGE_TEMPLATE = """
+    "{name}": {{
+        "url": "{url}",
+        "description": "{description}",
+        "homepage": "{homepage}",
+        "author": "{author}",
+        "license": "{license}",
+        "os": {os},
+        "keywords": {keywords},
+        "depends": {depends},
+    }}
+"""
+
+
+def run_bash(
+        script: str,
+        capture_stdout: bool = False, capture_stderr: bool = False,
+        check: bool = True, input: str = None
+):
+    return subprocess.run(
+        ['/usr/bin/env', 'bash', '-c', script],
+        check=check,
+        stdout=subprocess.PIPE if capture_stdout else None,
+        stderr=subprocess.PIPE if capture_stderr else None,
+        universal_newlines=True,
+        input=input,
+    )
+
+
+def parse_args(sys_args: list):
+    parser = argparse.ArgumentParser(
+        description="Generate Pearl repository from a list of git URLs"
+    )
+    parser.add_argument(
+        'urls_filepath',
+        metavar='URLS_FILE',
+        type=Path,
+        help="File containing Git urls (one for each line) to fetch"
+    )
+    parser.add_argument(
+        'repo_out_filepath',
+        metavar='OUT_FILE',
+        type=Path,
+        help="File where to write the Pearl repo conf"
+    )
+    args = parser.parse_args(sys_args)
+    return args
+
+
+class PackageAttribute(Enum):
+    NAME = auto()
+    DESCRIPTION = auto()
+    HOMEPAGE = auto()
+    AUTHOR = auto()
+    LICENSE = auto()
+    OS = auto()
+    KEYWORDS = auto()
+    DEPENDS = auto()
+
+    @staticmethod
+    def from_name(name) -> Union[None, 'PackageAttribute']:
+        return PackageAttribute.__members__.get(name.upper())
+
+
+def _build_package_info(package_conf_filepath: Path, url: str):
+    local_dict = {}
+    exec(package_conf_filepath.open().read(), {}, local_dict)
+    package_info = {
+        'url': url
+    }
+    for attr, value in local_dict.items():
+        pkg_attr = PackageAttribute.from_name(attr)
+        if pkg_attr is None:
+            continue
+        package_info[pkg_attr.name.lower()] = value
+    return package_info
+
+
+def generate_pearl_repo(urls_filepath: Path) -> dict:
+    pearl_repo = OrderedDict()
+    with urls_filepath.open('r') as urls_file:
+        urls = [url.strip() for url in urls_file.readlines()]
+        for url in urls:
+            url = url.strip()
+            if url.startswith('#'):
+                print(f'Skipping {url} because is commented')
+                continue
+            print(f"Processing {url}...")
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                tmp_dirpath = Path(tmp_dir)
+                run_bash(
+                    f"git clone {url} {tmp_dirpath}"
+                )
+                package_conf_filepath = (tmp_dirpath / 'pearl-config/package.conf')
+                if not package_conf_filepath.exists():
+                    print(f"Skipping {url} because package.conf does not exist...")
+                    continue
+                package_info = _build_package_info(package_conf_filepath, url)
+                name = package_info['name']
+                pearl_repo[name] = package_info
+    return pearl_repo
+
+
+def write_pearl_repo(pearl_repo: dict, repo_out_filepath: Path):
+    package_str = ""
+    with repo_out_filepath.open('w') as repo_out_file:
+        for name, pearl_info in pearl_repo.items():
+            package_str += PACKAGE_TEMPLATE.format(
+                name=name,
+                url=pearl_info['url'],
+                description=pearl_info['description'],
+                homepage=pearl_info['homepage'],
+                author=pearl_info['author'],
+                license=pearl_info.get('license'),
+                os=pearl_info['os'],
+                keywords=pearl_info['keywords'],
+                depends=pearl_info['depends'],
+            )
+
+        pearl_repo_str = PEARL_CONF_TEMPLATE.format(
+            body=package_str
+        )
+        repo_out_file.write(pearl_repo_str)
+
+
+def main():
+    args = parse_args(sys.argv[1:])
+    print(args)
+    pearl_repo = generate_pearl_repo(args.urls_filepath)
+    write_pearl_repo(pearl_repo, args.repo_out_filepath)
+
+
+if __name__ == '__main__':
+    main()
