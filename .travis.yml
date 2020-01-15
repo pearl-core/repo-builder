@@ -1,0 +1,10 @@
+
+language: python
+
+python:
+  - "3.8"
+
+script:
+  #- git clone https://github.com/pearl-hub/repo-v2.git
+  - python ./build-repo ./urls ./repo.conf
+  - cat ./repo.conf
