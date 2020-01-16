@@ -23,16 +23,16 @@ PEARL_PACKAGES = {{
 """
 
 PACKAGE_TEMPLATE = """
-    "{name}": {{
-        "url": "{url}",
-        "description": "{description}",
-        "homepage": "{homepage}",
-        "author": "{author}",
-        "license": "{license}",
-        "os": {os},
-        "keywords": {keywords},
-        "depends": {depends},
-    }}
+    {name}: {{
+        'url': {url},
+        'description': {description},
+        'homepage': {homepage},
+        'author': {author},
+        'license": {license},
+        'os': {os},
+        'keywords': {keywords},
+        'depends': {depends},
+    }},
 """
 
 
@@ -130,15 +130,15 @@ def write_pearl_repo(pearl_repo: dict, repo_out_filepath: Path):
     with repo_out_filepath.open('w') as repo_out_file:
         for name, pearl_info in pearl_repo.items():
             package_str += PACKAGE_TEMPLATE.format(
-                name=name,
-                url=pearl_info['url'],
-                description=pearl_info['description'],
-                homepage=pearl_info['homepage'],
-                author=pearl_info['author'],
-                license=pearl_info.get('license'),
-                os=pearl_info['os'],
-                keywords=pearl_info['keywords'],
-                depends=pearl_info['depends'],
+                name=repr(name),
+                url=repr(pearl_info['url']),
+                description=repr(pearl_info['description']),
+                homepage=repr(pearl_info['homepage']),
+                author=repr(pearl_info['author']),
+                license=repr(pearl_info.get('license')),
+                os=repr(pearl_info['os']),
+                keywords=repr(pearl_info['keywords']),
+                depends=repr(pearl_info['depends']),
             )
 
         pearl_repo_str = PEARL_CONF_TEMPLATE.format(
