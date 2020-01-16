@@ -28,7 +28,7 @@ PACKAGE_TEMPLATE = """
         'description': {description},
         'homepage': {homepage},
         'author': {author},
-        'license": {license},
+        'license': {license},
         'os': {os},
         'keywords': {keywords},
         'depends': {depends},
