@@ -7,7 +7,6 @@ import tempfile
 from collections import OrderedDict
 
 from pathlib import Path
-from textwrap import dedent
 from typing import Union
 
 PEARL_CONF_TEMPLATE = """

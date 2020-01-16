@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-
 set -ex
 
 REPO_CONF="$1"
